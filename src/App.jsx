@@ -113,21 +113,62 @@ function App() {
     service: "Data Analytics & Reporting",
     message: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [submitError, setSubmitError] = useState(false);
 
   const closeMenu = () => setMenuOpen(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
+    setIsSubmitting(true);
+    setSubmitMessage("");
+    setSubmitError(false);
 
-    const subject = encodeURIComponent(
-      `Project enquiry from ${form.name}`
-    );
-    const body = encodeURIComponent(
-      `Name: ${form.name}\nEmail: ${form.email}\nService: ${form.service}\n\nProject details:\n${form.message}`
-    );
+    try {
+      const response = await fetch(
+        "https://formsubmit.co/ajax/contact@hanalyticsdata.in",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            name: form.name.trim(),
+            email: form.email.trim(),
+            service: form.service,
+            message: form.message.trim(),
+            _subject: `Project enquiry from ${form.name.trim()}`,
+            _template: "table",
+          }),
+        }
+      );
 
-    window.location.href =
-      `mailto:hello@hanalyticsdata.in?subject=${subject}&body=${body}`;
+      const result = await response.json();
+      const succeeded = result.success === true || result.success === "true";
+
+      if (!response.ok || !succeeded) {
+        throw new Error(result.message || "The enquiry could not be submitted.");
+      }
+
+      setSubmitMessage(
+        "Thank you! Your enquiry has been submitted. We will get back to you soon."
+      );
+      setForm({
+        name: "",
+        email: "",
+        service: "Data Analytics & Reporting",
+        message: "",
+      });
+    } catch (error) {
+      setSubmitError(true);
+      setSubmitMessage(
+        "We couldn't submit your enquiry. Please email contact@hanalyticsdata.in directly."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -552,12 +593,23 @@ function App() {
                 required
               />
 
-              <button className="button button-primary form-submit" type="submit">
-                Prepare Enquiry <Send size={17} />
+              <button
+                className="button button-primary form-submit"
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Sending..." : "Send Enquiry"}
+                {!isSubmitting && <Send size={17} />}
               </button>
-              <p className="form-note">
-                This opens your default email app to send the enquiry.
-              </p>
+              {submitMessage && (
+                <p
+                  className={`form-note ${submitError ? "form-note-error" : "form-note-success"}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {submitMessage}
+                </p>
+              )}
             </form>
           </div>
         </section>
